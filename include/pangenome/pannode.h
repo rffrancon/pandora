@@ -6,7 +6,9 @@
 #include <unordered_set>
 #include <vector>
 #include "kmergraph.h"
+#include "localPRG.h"
 #include "pangenome/ns.cpp"
+#include "vcf.h"
 
 
 class LocalPRG;
@@ -33,7 +35,9 @@ public:
 
     void get_read_overlap_coordinates(std::vector<std::vector<uint32_t>> &);
 
-    void output_samples(const std::shared_ptr<LocalPRG> &, const std::string &, const uint32_t, const std::string &);
+    void construct_multisample_vcf(VCF &master_vcf, const std::vector<LocalNodePtr> &,
+                                   const std::shared_ptr<LocalPRG> &,
+                                   const uint32_t);
 
     bool operator==(const Node &y) const;
 

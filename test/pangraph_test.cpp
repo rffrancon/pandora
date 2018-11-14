@@ -691,3 +691,4 @@ TEST(PangenomeGraphTest, save_mapped_read_strings) {
     std::string content2((std::istreambuf_iterator<char>(ifs2)), (std::istreambuf_iterator<char>()));
     EXPECT_TRUE((content2 == expected1) or (content2 == expected2));
 }
+

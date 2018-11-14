@@ -14,7 +14,6 @@
 #include "pangenome/pannode.h"
 #include "pangenome/panread.h"
 #include "pangenome/pansample.h"
-#include "localPRG.h"
 #include "minihit.h"
 #include "fastaq_handler.h"
 
@@ -366,7 +365,8 @@ void Graph::add_hits_to_kmergraphs(const std::vector<std::shared_ptr<LocalPRG>> 
                 auto &kmer_node = *pangraph_node.kmer_prg.nodes[minimizer_hit.knode_id];
                 kmer_node.increment_covg(minimizer_hit.strand, sample_id);
 
-                if (pangraph_node.kmer_prg.nodes[minimizer_hit.knode_id]->get_covg(minimizer_hit.strand, sample_id) == 1000) {
+                if (pangraph_node.kmer_prg.nodes[minimizer_hit.knode_id]->get_covg(minimizer_hit.strand, sample_id) ==
+                    1000) {
                     BOOST_LOG_TRIVIAL(debug) << "Adding hit " << minimizer_hit
                                              << " resulted in high coverage on node "
                                              << *pangraph_node.kmer_prg.nodes[minimizer_hit.knode_id];
@@ -380,6 +380,54 @@ void Graph::add_hits_to_kmergraphs(const std::vector<std::shared_ptr<LocalPRG>> 
                                  << " hits in the reverse";
         pangraph_node.kmer_prg.num_reads = pangraph_node.covg;
     }
+}
+
+std::vector<std::vector<LocalNodePtr>>
+Graph::infer_vcf_reference_paths(const std::vector<std::shared_ptr<LocalPRG>> &prgs, const uint32_t &w,
+                                 const std::unordered_map<std::string, std::string>& vcf_refs) {
+    std::vector<std::vector<LocalNodePtr>> reference_paths;
+    for (const auto &node_entry: nodes) {
+        const auto &node = *node_entry.second;
+        const auto &prg = *prgs[node.prg_id];
+        const auto &vcf_reference_sequence = vcf_refs.at(prg.name);
+
+        const auto reference_path = prg.get_valid_vcf_reference(vcf_reference_sequence);
+        if (!reference_path.empty())
+            reference_paths.emplace_back(reference_path);
+        else
+            reference_paths.emplace_back(get_node_closest_vcf_reference(node, w, prg));
+    }
+    return reference_paths;
+}
+
+std::vector<LocalNodePtr>
+Graph::get_node_closest_vcf_reference(const Node &node, const uint32_t &w, const LocalPRG &prg) {
+    auto kmer_graph = prg.kmer_prg;
+
+    for (const auto &sample_entry: this->samples) {
+        const auto &sample = sample_entry.second;
+        if (sample->paths.find(node.node_id) != sample->paths.end())
+            continue;
+
+        const auto &sample_paths = sample->paths.at(node.node_id);
+        for (const auto &sample_path : sample_paths) {
+            for (uint32_t i = 0; i != sample_path.size(); ++i) {
+                assert(sample_path[i]->id < kmer_graph.nodes.size()
+                       and kmer_graph.nodes[sample_path[i]->id] != nullptr);
+                kmer_graph.nodes[sample_path[i]->id]->increment_covg(0, 0);
+                kmer_graph.nodes[sample_path[i]->id]->increment_covg(1, 0);
+            }
+        }
+    }
+
+    kmer_graph.set_p(0.01);
+    kmer_graph.num_reads = node.covg;
+
+    std::vector<KmerNodePtr> kmer_path;
+    kmer_graph.find_max_path(kmer_path, 0);
+
+    auto reference_path = prg.localnode_path_from_kmernode_path(kmer_path, w);
+    return reference_path;
 }
 
 same_prg_id::same_prg_id(const NodePtr &p) : q(p->prg_id) {};

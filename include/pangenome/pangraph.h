@@ -12,7 +12,9 @@ class KmerNode;
 #include <unordered_map>
 #include <ostream>
 #include <vector>
+
 #include "minihits.h"
+#include "localPRG.h"
 #include "pangenome/ns.cpp"
 
 
@@ -66,6 +68,13 @@ public:
 
     //unordered_set<ReadPtr> find_reads_on_node_path(const std::vector<uint16_t>, const std::vector<bool> );
     void add_hits_to_kmergraphs(const std::vector<std::shared_ptr<LocalPRG>> &, const uint32_t &sample_id = 0);
+
+    std::vector<std::vector<LocalNodePtr>>
+    infer_vcf_reference_paths(const std::vector<std::shared_ptr<LocalPRG>> &prgs, const uint32_t &w,
+                              const std::unordered_map<std::string, std::string> &VCFRefs);
+
+    std::vector<LocalNodePtr>
+    get_node_closest_vcf_reference(const Node &, const uint32_t &, const LocalPRG &);
 
     // graph comparison
     bool operator==(const Graph &y) const;
